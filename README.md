@@ -117,15 +117,6 @@ GUI 또는 카메라 이미지의 픽셀 좌표입니다.
 
 (u, v)
 
-일반적인 이미지 좌표계와 동일하게 좌측 상단을 원점으로 사용합니다.
-
-(0,0) ──────────────→ u
-  │
-  │
-  │
-  ▼
-  v
-
 ---
 
 2. Camera Coordinate
@@ -147,7 +138,6 @@ Deprojection
       ↓
 
 Camera Coordinate
-(Xc, Yc, Zc)
 
 RealSense의 카메라 내부 파라미터를 이용하여 픽셀 위치를 실제 3차원 위치로 변환합니다.
 
@@ -156,10 +146,6 @@ RealSense의 카메라 내부 파라미터를 이용하여 픽셀 위치를 실�
 3. Robot Base Coordinate
 
 Mirobot의 이동 명령은 로봇의 Base Coordinate System을 기준으로 처리합니다.
-
-Robot Coordinate
-
-(Xr, Yr, Zr)
 
 GUI에서 생성된 좌표 또는 카메라에서 획득한 좌표를 최종적으로 Robot Base Coordinate로 변환한 뒤 로봇에 전달합니다.
 
@@ -519,7 +505,7 @@ Current Progress
 - [ ] Camera-Robot Calibration
 - [ ] RealSense 기반 실제 물체 3D 경로 생성
 - [ ] 3D Path Tracking
-- [ ] Vision → Path Generation → Robot Control 통합
+
 
 ---
 
