@@ -20,9 +20,7 @@ def custom_tool_offset(mirobot, x, y, z):
 
 time.sleep(1)
 
-print("=== TCP OFFSET TEST ===")
 
-# 1. Offset 초기화
 print("\n[1] Offset = (0, 0, 0)")
 
 custom_tool_offset(mirobot1, 0, 0, 0)
@@ -35,7 +33,6 @@ print("Offset 적용 전 좌표:")
 print(coord_before)
 
 
-# 2. Z Offset 120mm 설정
 print("\n[2] Offset = (0, 0, 120)")
 
 custom_tool_offset(mirobot1, 0, 0, 120)
@@ -48,8 +45,7 @@ print("Offset 적용 후 좌표:")
 print(coord_after)
 
 
-print("\n=== RESULT ===")
-print("Before:", coord_before)
-print("After :", coord_after)
+print("적용 전:", coord_before)
+print("적용 후:", coord_after)
 
 serial1.close()

@@ -1,11 +1,4 @@
-from .config import (
-    CANVAS_HEIGHT,
-    CANVAS_WIDTH,
-    ROBOT_X_MAX,
-    ROBOT_X_MIN,
-    ROBOT_Y_MAX,
-    ROBOT_Y_MIN,
-)
+from .config import *
 
 
 def canvas_to_robot(canvas_x, canvas_y):

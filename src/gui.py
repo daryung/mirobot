@@ -12,7 +12,7 @@ import pyrealsense2 as rs
 from .camera_segmentation import extract_paths_from_image
 from .config import *
 from .coordinate import canvas_to_robot, robot_to_canvas
-from .image_processor import image_to_strokes, optimize_stroke_order, read_image_unicode
+from .image_processor import image_to_strokes, read_image_unicode
 from .robot_controller import RobotController
 
 class DrawingRobotApp:
@@ -356,17 +356,11 @@ class DrawingRobotApp:
             self.set_status(f"사진 처리 오류: {error}")
 
     @staticmethod
-    @staticmethod
     def read_image_unicode(path):
         return read_image_unicode(path)
 
     def image_to_strokes(self, image):
         return image_to_strokes(image)
-
-    @staticmethod
-    @staticmethod
-    def optimize_stroke_order(strokes):
-        return optimize_stroke_order(strokes)
 
     def redraw_strokes(self):
         self.canvas.delete("all")
@@ -720,10 +714,7 @@ class DrawingRobotApp:
                     continue
 
                 first_canvas_x, first_canvas_y = stroke[0]
-                first_robot_x, first_robot_y = self.canvas_to_robot(
-                    first_canvas_x,
-                    first_canvas_y,
-                )
+                first_robot_x, first_robot_y = self.canvas_to_robot(first_canvas_x, first_canvas_y)
 
                 self.set_status(
                     f"{stroke_index}/{total_strokes}번째 선 시작점으로 이동 중..."
