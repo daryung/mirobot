@@ -7,8 +7,8 @@ CSV_PATH = "추론_용접선_웨이포인트.csv"
 TARGET_CONDITION = "WELD_D04_L1_A000"
 
 START_X = 0.0
-START_Y = 170.0
-START_Z = 120.0
+START_Y = 280.0
+START_Z = 12.2
 
 RX = 0.0
 RY = 0.0
@@ -63,6 +63,9 @@ def follow_waypoints(mirobot, waypoints):
 
 def main():
     waypoints = load_waypoints(CSV_PATH, TARGET_CONDITION)
+    serial1 = serial. Serial("COM7", 115200)
+    mirobot1 = wlkatapython.Wlkata_UART()
+    mirobot1.init(serial1,-1)
 
     print(f"{TARGET_CONDITION}: {len(waypoints)} waypoints loaded")
 
@@ -89,6 +92,8 @@ def main():
             f"Y={p['y']:.2f}, "
             f"Z={p['z']:.2f}"
         )
+
+    follow_waypoints(mirobot1, robot_points)
 
 
 if __name__ == "__main__":
