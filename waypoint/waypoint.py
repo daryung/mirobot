@@ -4,7 +4,7 @@ import serial
 import wlkatapython
 
 CSV_PATH = "추론_용접선_웨이포인트.csv"
-TARGET_CONDITION = "WELD_D04_L1_A000"
+TARGET_CONDITION = "WELD_D08_L1_A030"
 
 START_X = -128.0
 START_Y = 250.0
