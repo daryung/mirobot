@@ -1,0 +1,326 @@
+import tkinter as tk
+from tkinter import messagebox
+import serial
+import wlkatapython
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+#py 3d\test.py
+
+#가로 : 65mm 
+#세로 : 40mm
+#높이 : 150mm
+
+START_X = 258.6
+START_Y = -65.0
+
+PEN_UP_Z = 20.0
+PEN_DOWN_Z = 12.5
+
+LINE_GAP = 30.0
+
+
+class LineDrawGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Robot Line Drawing")
+        self.root.geometry("950x600")
+
+        try:
+            self.serial = serial.Serial("COM7", 115200)
+
+            self.robot = wlkatapython.Wlkata_UART()
+            self.robot.init(self.serial, -1)
+            self.robot.speed(2000)
+
+            print("로봇 연결 성공")
+
+        except Exception as e:
+            messagebox.showerror("연결 오류", str(e))
+            self.serial = None
+            self.robot = None
+
+        left_frame = tk.Frame(root)
+        left_frame.pack(
+            side=tk.LEFT,
+            padx=20,
+            pady=20
+        )
+
+        right_frame = tk.Frame(root)
+        right_frame.pack(
+            side=tk.RIGHT,
+            fill=tk.BOTH,
+            expand=True,
+            padx=20,
+            pady=20
+        )
+
+        tk.Label(
+            left_frame,
+            text="상자 크기 입력 (cm)",
+            font=("Arial", 14)
+        ).pack(pady=15)
+
+        labels = [
+            "X 길이:",
+            "Y 길이:",
+            "Z 길이:"
+        ]
+
+        self.entries = []
+
+        for label_text in labels:
+            frame = tk.Frame(left_frame)
+            frame.pack(pady=5)
+
+            tk.Label(
+                frame,
+                text=label_text,
+                width=10
+            ).pack(side=tk.LEFT)
+
+            entry = tk.Entry(
+                frame,
+                width=10
+            )
+            entry.pack(side=tk.LEFT)
+
+            self.entries.append(entry)
+
+        tk.Button(
+            left_frame,
+            text="그리기 시작",
+            command=self.draw_lines,
+            width=15
+        ).pack(pady=20)
+
+        self.figure = plt.Figure(
+            figsize=(6, 5),
+            dpi=100
+        )
+
+        self.ax = self.figure.add_subplot(
+            111,
+            projection="3d"
+        )
+
+        self.canvas = FigureCanvasTkAgg(
+            self.figure,
+            master=right_frame
+        )
+
+        self.canvas.get_tk_widget().pack(
+            fill=tk.BOTH,
+            expand=True
+        )
+
+        self.setup_3d()
+
+        self.root.protocol(
+            "WM_DELETE_WINDOW",
+            self.close
+        )
+
+    def setup_3d(self):
+        self.ax.clear()
+
+        self.ax.set_title("3D Box Model")
+
+        self.ax.set_xlabel("X (mm)")
+        self.ax.set_ylabel("Y (mm)")
+        self.ax.set_zlabel("Z (mm)")
+
+        self.ax.set_xlim(0, 200)
+        self.ax.set_ylim(0, 200)
+        self.ax.set_zlim(0, 200)
+
+        self.canvas.draw()
+
+    def update_3d(self, lengths):
+        x = lengths[0]
+        y = lengths[1]
+        z = lengths[2]
+
+        self.ax.clear()
+
+        vertices = [
+            [0, 0, 0],
+            [x, 0, 0],
+            [x, y, 0],
+            [0, y, 0],
+            [0, 0, z],
+            [x, 0, z],
+            [x, y, z],
+            [0, y, z]
+        ]
+
+        faces = [
+            [vertices[0], vertices[1], vertices[2], vertices[3]],
+            [vertices[4], vertices[5], vertices[6], vertices[7]],
+            [vertices[0], vertices[1], vertices[5], vertices[4]],
+            [vertices[2], vertices[3], vertices[7], vertices[6]],
+            [vertices[1], vertices[2], vertices[6], vertices[5]],
+            [vertices[0], vertices[3], vertices[7], vertices[4]]
+        ]
+
+        box = Poly3DCollection(
+            faces,
+            alpha=0.25,
+            edgecolor="black"
+        )
+
+        self.ax.add_collection3d(box)
+
+        max_length = max(x, y, z)
+
+        self.ax.set_xlim(0, max_length)
+        self.ax.set_ylim(0, max_length)
+        self.ax.set_zlim(0, max_length)
+
+        self.ax.set_xlabel(
+            f"X = {x / 10:.1f} cm"
+        )
+
+        self.ax.set_ylabel(
+            f"Y = {y / 10:.1f} cm"
+        )
+
+        self.ax.set_zlabel(
+            f"Z = {z / 10:.1f} cm"
+        )
+
+        self.ax.set_title(
+            f"3D Box  "
+            f"{x / 10:.1f} × "
+            f"{y / 10:.1f} × "
+            f"{z / 10:.1f} cm"
+        )
+
+        self.ax.set_box_aspect(
+            (x, y, z)
+        )
+
+        self.canvas.draw()
+
+    def draw_lines(self):
+        try:
+            if self.robot is None:
+                messagebox.showerror(
+                    "로봇 오류",
+                    "로봇이 연결되지 않았습니다."
+                )
+                return
+
+            lengths = []
+
+            for entry in self.entries:
+                length_cm = float(
+                    entry.get()
+                )
+
+                if length_cm <= 0 or length_cm > 20:
+                    messagebox.showerror(
+                        "입력 오류",
+                        "모든 길이는 0보다 크고 20cm 이하로 입력해주세요."
+                    )
+                    return
+
+                lengths.append(
+                    length_cm * 10
+                )
+
+            self.update_3d(lengths)
+
+            for i, length_mm in enumerate(lengths):
+                line_x = START_X + (i * LINE_GAP)
+                line_y = START_Y
+                end_y = line_y + length_mm
+
+                self.robot.writecoordinate(
+                    1,
+                    0,
+                    line_x,
+                    line_y,
+                    PEN_UP_Z,
+                    0,
+                    0,
+                    0
+                )
+
+                self.robot.writecoordinate(
+                    1,
+                    0,
+                    line_x,
+                    line_y,
+                    PEN_DOWN_Z,
+                    0,
+                    0,
+                    0
+                )
+
+                self.robot.writecoordinate(
+                    1,
+                    0,
+                    line_x,
+                    end_y,
+                    PEN_DOWN_Z,
+                    0,
+                    0,
+                    0
+                )
+
+                self.robot.writecoordinate(
+                    1,
+                    0,
+                    line_x,
+                    end_y,
+                    PEN_UP_Z,
+                    0,
+                    0,
+                    0
+                )
+
+                print(
+                    f"{i + 1}번 선: "
+                    f"{length_mm / 10:.1f} cm"
+                )
+            self.robot.zero()    
+
+            print(
+                f"3D 상자: "
+                f"{lengths[0] / 10:.1f} × "
+                f"{lengths[1] / 10:.1f} × "
+                f"{lengths[2] / 10:.1f} cm"
+            )
+
+        except ValueError:
+            messagebox.showerror(
+                "입력 오류",
+                "3개의 길이를 모두 숫자로 입력해주세요."
+            )
+
+        except Exception as e:
+            messagebox.showerror(
+                "로봇 오류",
+                str(e)
+            )
+
+    def close(self):
+        try:
+            if self.robot is not None:
+                self.robot.cancellation()
+
+            if self.serial is not None:
+                self.serial.close()
+
+        finally:
+            self.root.destroy()
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = LineDrawGUI(root)
+    root.mainloop()
