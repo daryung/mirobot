@@ -6,8 +6,9 @@ import wlkatapython
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import time
 
-#py 3d\test.py
+#py 3d\3d2.py
 
 #가로 : 65mm 
 #세로 : 40mm
@@ -17,7 +18,7 @@ START_X = 258.6
 START_Y = -65.0
 
 PEN_UP_Z = 20.0
-PEN_DOWN_Z = 12.5
+PEN_DOWN_Z = 15.0
 
 LINE_GAP = 30.0
 
@@ -96,6 +97,13 @@ class LineDrawGUI:
             command=self.draw_lines,
             width=15
         ).pack(pady=20)
+
+        tk.Button(
+            left_frame,
+            text="3축 방향 테스트",
+            command=self.draw_xyz_lines,
+            width=15
+        ).pack(pady=5)
 
         self.figure = plt.Figure(
             figsize=(6, 5),
@@ -205,6 +213,89 @@ class LineDrawGUI:
 
         self.canvas.draw()
 
+    def move_linear_4parts(self, x, start_y, end_y, z):
+        for i in range(1, 11):
+            t = i / 10.0
+            y = start_y + (end_y - start_y) * t
+
+            self.robot.writecoordinate(
+                0,
+                0,
+                x,
+                y,
+                z,
+                0,
+                0,
+                0
+            )
+            time.sleep(0.05)
+
+    def move_linear_xyz(self, start_x, start_y, start_z, end_x, end_y, end_z):
+        for i in range(1, 11):
+            t = i / 10.0
+            x = start_x + (end_x - start_x) * t
+            y = start_y + (end_y - start_y) * t
+            z = start_z + (end_z - start_z) * t
+
+            self.robot.writecoordinate(
+                1, 0, x, y, z, 0, 0, 0
+            )
+            time.sleep(0.05)
+
+    def draw_xyz_lines(self):
+        try:
+            if self.robot is None:
+                messagebox.showerror("로봇 오류", "로봇이 연결되지 않았습니다.")
+                return
+
+            lengths = []
+            for entry in self.entries:
+                length_cm = float(entry.get())
+                if length_cm <= 0 or length_cm > 20:
+                    messagebox.showerror(
+                        "입력 오류",
+                        "모든 길이는 0보다 크고 20cm 이하로 입력해주세요."
+                    )
+                    return
+                lengths.append(length_cm * 10)
+
+            # 기존 GUI의 3D 모델 표시도 그대로 갱신
+            self.update_3d(lengths)
+
+            length_y = lengths[0]  # 1번 입력 -> +Y
+            length_x = lengths[1]  # 2번 입력 -> +X
+            length_z = lengths[2]  # 3번 입력 -> +Z
+
+            sx = START_X
+            sy = START_Y
+            sz = PEN_DOWN_Z
+
+
+            self.robot.writecoordinate(1, 0, sx, sy, PEN_UP_Z, 0, 0, 0)
+            self.robot.writecoordinate(1, 0, sx, sy, sz, 0, 0, 0)
+            self.move_linear_xyz(sx, sy, sz, sx, sy + length_y, sz)
+            self.robot.writecoordinate(1, 0, sx, sy + length_y, PEN_UP_Z, 0, 0, 0)
+            time.sleep(0.5)
+
+            self.robot.writecoordinate(1, 0, sx, sy, PEN_UP_Z, 0, 0, 0)
+            self.robot.writecoordinate(1, 0, sx, sy, sz, 0, 0, 0)
+            self.move_linear_xyz(sx, sy, sz, sx + length_x, sy, sz)
+            self.robot.writecoordinate(1, 0, sx + length_x, sy, PEN_UP_Z, 0, 0, 0)
+            time.sleep(0.5)
+
+    
+            self.robot.writecoordinate(1, 0, sx, sy, sz, 0, 0, 0)
+            self.move_linear_xyz(sx, sy, sz, sx, sy, sz + length_z)
+
+
+        except ValueError:
+            messagebox.showerror(
+                "입력 오류",
+                "3개의 길이를 모두 숫자로 입력해주세요."
+            )
+        except Exception as e:
+            messagebox.showerror("로봇 오류", str(e))
+
     def draw_lines(self):
         try:
             if self.robot is None:
@@ -240,7 +331,7 @@ class LineDrawGUI:
                 end_y = line_y + length_mm
 
                 self.robot.writecoordinate(
-                    1,
+                    0,
                     0,
                     line_x,
                     line_y,
@@ -251,7 +342,7 @@ class LineDrawGUI:
                 )
 
                 self.robot.writecoordinate(
-                    1,
+                    0,
                     0,
                     line_x,
                     line_y,
@@ -261,19 +352,15 @@ class LineDrawGUI:
                     0
                 )
 
-                self.robot.writecoordinate(
-                    1,
-                    0,
+                self.move_linear_4parts(
                     line_x,
+                    line_y,
                     end_y,
-                    PEN_DOWN_Z,
-                    0,
-                    0,
-                    0
+                    PEN_DOWN_Z
                 )
 
                 self.robot.writecoordinate(
-                    1,
+                    0,
                     0,
                     line_x,
                     end_y,
@@ -283,18 +370,8 @@ class LineDrawGUI:
                     0
                 )
 
-                print(
-                    f"{i + 1}번 선: "
-                    f"{length_mm / 10:.1f} cm"
-                )
-            self.robot.zero()    
 
-            print(
-                f"3D 상자: "
-                f"{lengths[0] / 10:.1f} × "
-                f"{lengths[1] / 10:.1f} × "
-                f"{lengths[2] / 10:.1f} cm"
-            )
+            self.robot.zero()
 
         except ValueError:
             messagebox.showerror(
