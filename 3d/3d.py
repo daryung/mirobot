@@ -8,11 +8,11 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import time
 
-#py 3d\3d2.py
+#py 3d\3d.py
 
-#가로 : 65mm 
+#가로 : 60mm 
 #세로 : 40mm
-#높이 : 150mm
+#높이 : 135mm
 
 START_X = 258.6
 START_Y = -65.0
@@ -102,6 +102,13 @@ class LineDrawGUI:
             left_frame,
             text="3축 방향 테스트",
             command=self.draw_xyz_lines,
+            width=15
+        ).pack(pady=5)
+
+        tk.Button(
+            left_frame,
+            text="지정 좌표 이동",
+            command=self.move_fixed_coordinates,
             width=15
         ).pack(pady=5)
 
@@ -259,12 +266,12 @@ class LineDrawGUI:
                     return
                 lengths.append(length_cm * 10)
 
-            # 기존 GUI의 3D 모델 표시도 그대로 갱신
+
             self.update_3d(lengths)
 
-            length_y = lengths[0]  # 1번 입력 -> +Y
-            length_x = lengths[1]  # 2번 입력 -> +X
-            length_z = lengths[2]  # 3번 입력 -> +Z
+            length_y = lengths[0]
+            length_x = lengths[1]
+            length_z = lengths[2]
 
             sx = START_X
             sy = START_Y
@@ -293,6 +300,37 @@ class LineDrawGUI:
                 "입력 오류",
                 "3개의 길이를 모두 숫자로 입력해주세요."
             )
+        except Exception as e:
+            messagebox.showerror("로봇 오류", str(e))
+
+    def move_fixed_coordinates(self):
+        try:
+            if self.robot is None:
+                messagebox.showerror("로봇 오류", "로봇이 연결되지 않았습니다.")
+                return
+
+            points = [
+                (223.0, 55.0, 15.0),
+                (223.0, 55.0, 75.0),   # 기준점
+                (223.0, -80.0, 75.0),
+                (223.0, 55.0, 15.0),
+                (263.0, 55.0, 15.0),
+            ]
+
+            x, y, z = points[0]
+            print(f"[지정 좌표 이동] 1 -> X={x}, Y={y}, Z={z}")
+            self.robot.writecoordinate(1, 0, x, y, z, 0, 0, 0)
+            time.sleep(1.0)
+
+            for i in range(1, len(points)):
+                sx, sy, sz = points[i - 1]
+                ex, ey, ez = points[i]
+                print(f"[지정 좌표 이동] {i + 1} -> X={ex}, Y={ey}, Z={ez}")
+                self.move_linear_xyz(sx, sy, sz, ex, ey, ez)
+                time.sleep(0.5)
+
+            messagebox.showinfo("완료", "지정 좌표 이동을 완료했습니다.")
+
         except Exception as e:
             messagebox.showerror("로봇 오류", str(e))
 
@@ -369,6 +407,11 @@ class LineDrawGUI:
                     0,
                     0
                 )
+
+            print(f"입력 길이: {length_cm} cm")
+            print(f"변환 길이: {length_mm} mm")
+            print(f"시작 Y: {line_y}")
+            print(f"종료 Y: {end_y}")
 
 
             self.robot.zero()
