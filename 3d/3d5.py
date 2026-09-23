@@ -1,0 +1,517 @@
+import tkinter as tk
+from tkinter import messagebox
+import serial
+import wlkatapython
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import time
+
+#py 3d\3d.py
+
+#가로 : 60mm 
+#세로 : 40mm
+#높이 : 135mm
+
+START_X = 258.6
+START_Y = -65.0
+
+PEN_UP_Z = 20.0
+PEN_DOWN_Z = 15.0
+
+LINE_GAP = 30.0
+
+
+class LineDrawGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Robot Line Drawing")
+        self.root.geometry("950x600")
+
+        try:
+            self.serial = serial.Serial("COM7", 115200)
+
+            self.robot = wlkatapython.Wlkata_UART()
+            self.robot.init(self.serial, -1)
+            self.robot.speed(2000)
+
+            print("로봇 연결 성공")
+
+        except Exception as e:
+            messagebox.showerror("연결 오류", str(e))
+            self.serial = None
+            self.robot = None
+
+        left_frame = tk.Frame(root)
+        left_frame.pack(
+            side=tk.LEFT,
+            padx=20,
+            pady=20
+        )
+
+        right_frame = tk.Frame(root)
+        right_frame.pack(
+            side=tk.RIGHT,
+            fill=tk.BOTH,
+            expand=True,
+            padx=20,
+            pady=20
+        )
+
+        tk.Label(
+            left_frame,
+            text="상자 크기 입력 (cm)",
+            font=("Arial", 14)
+        ).pack(pady=15)
+
+        labels = [
+            "X 길이:",
+            "Y 길이:",
+            "Z 길이:"
+        ]
+
+        self.entries = []
+
+        for label_text in labels:
+            frame = tk.Frame(left_frame)
+            frame.pack(pady=5)
+
+            tk.Label(
+                frame,
+                text=label_text,
+                width=10
+            ).pack(side=tk.LEFT)
+
+            entry = tk.Entry(
+                frame,
+                width=10
+            )
+            entry.pack(side=tk.LEFT)
+
+            self.entries.append(entry)
+
+        tk.Button(
+            left_frame,
+            text="그리기 시작",
+            command=self.draw_lines,
+            width=15
+        ).pack(pady=20)
+
+        tk.Button(
+            left_frame,
+            text="3축 방향 테스트",
+            command=self.draw_xyz_lines,
+            width=15
+        ).pack(pady=5)
+
+        tk.Button(
+            left_frame,
+            text="지정 좌표 이동",
+            command=self.move_fixed_coordinates,
+            width=15
+        ).pack(pady=5)
+
+        self.figure = plt.Figure(
+            figsize=(6, 5),
+            dpi=100
+        )
+
+        self.ax = self.figure.add_subplot(
+            111,
+            projection="3d"
+        )
+
+        self.canvas = FigureCanvasTkAgg(
+            self.figure,
+            master=right_frame
+        )
+
+        self.canvas.get_tk_widget().pack(
+            fill=tk.BOTH,
+            expand=True
+        )
+
+        self.setup_3d()
+
+        self.root.protocol(
+            "WM_DELETE_WINDOW",
+            self.close
+        )
+
+    def setup_3d(self):
+        self.ax.clear()
+
+        self.ax.set_title("3D Box Model")
+
+        self.ax.set_xlabel("X (mm)")
+        self.ax.set_ylabel("Y (mm)")
+        self.ax.set_zlabel("Z (mm)")
+
+        self.ax.set_xlim(0, 200)
+        self.ax.set_ylim(0, 200)
+        self.ax.set_zlim(0, 200)
+
+        self.canvas.draw()
+
+    def update_3d(self, lengths):
+        x = lengths[0]
+        y = lengths[1]
+        z = lengths[2]
+
+        self.ax.clear()
+
+        vertices = [
+            [0, 0, 0],
+            [x, 0, 0],
+            [x, y, 0],
+            [0, y, 0],
+            [0, 0, z],
+            [x, 0, z],
+            [x, y, z],
+            [0, y, z]
+        ]
+
+        faces = [
+            [vertices[0], vertices[1], vertices[2], vertices[3]],
+            [vertices[4], vertices[5], vertices[6], vertices[7]],
+            [vertices[0], vertices[1], vertices[5], vertices[4]],
+            [vertices[2], vertices[3], vertices[7], vertices[6]],
+            [vertices[1], vertices[2], vertices[6], vertices[5]],
+            [vertices[0], vertices[3], vertices[7], vertices[4]]
+        ]
+
+        box = Poly3DCollection(
+            faces,
+            alpha=0.25,
+            edgecolor="black"
+        )
+
+        self.ax.add_collection3d(box)
+
+        max_length = max(x, y, z)
+
+        self.ax.set_xlim(0, max_length)
+        self.ax.set_ylim(0, max_length)
+        self.ax.set_zlim(0, max_length)
+
+        self.ax.set_xlabel(
+            f"X = {x / 10:.1f} cm"
+        )
+
+        self.ax.set_ylabel(
+            f"Y = {y / 10:.1f} cm"
+        )
+
+        self.ax.set_zlabel(
+            f"Z = {z / 10:.1f} cm"
+        )
+
+        self.ax.set_title(
+            f"3D Box  "
+            f"{x / 10:.1f} × "
+            f"{y / 10:.1f} × "
+            f"{z / 10:.1f} cm"
+        )
+
+        self.ax.set_box_aspect(
+            (x, y, z)
+        )
+
+        self.canvas.draw()
+
+    def move_linear_4parts(self, x, start_y, end_y, z):
+        for i in range(1, 11):
+            t = i / 10.0
+            y = start_y + (end_y - start_y) * t
+
+            self.robot.writecoordinate(
+                0,
+                0,
+                x,
+                y,
+                z,
+                0,
+                0,
+                0
+            )
+            time.sleep(0.05)
+
+    def move_linear_xyz(self, start_x, start_y, start_z, end_x, end_y, end_z):
+        print(
+            f"\n[구간 이동 시작] "
+            f"({start_x:.2f}, {start_y:.2f}, {start_z:.2f}) -> "
+            f"({end_x:.2f}, {end_y:.2f}, {end_z:.2f})"
+        )
+
+        for i in range(1, 11):
+            t = i / 10.0
+            x = start_x + (end_x - start_x) * t
+            y = start_y + (end_y - start_y) * t
+            z = start_z + (end_z - start_z) * t
+
+            print(
+                f"  [{i:02d}/10] "
+                f"X={x:.2f}, Y={y:.2f}, Z={z:.2f}"
+            )
+
+            self.robot.writecoordinate(
+                1, 0, x, y, z, 0, 0, 0
+            )
+            time.sleep(0.05)
+
+        print("[구간 이동 완료]")
+
+    def draw_xyz_lines(self):
+        try:
+            if self.robot is None:
+                messagebox.showerror("로봇 오류", "로봇이 연결되지 않았습니다.")
+                return
+
+            lengths = []
+            for entry in self.entries:
+                length_cm = float(entry.get())
+                if length_cm <= 0 or length_cm > 20:
+                    messagebox.showerror(
+                        "입력 오류",
+                        "모든 길이는 0보다 크고 20cm 이하로 입력해주세요."
+                    )
+                    return
+                lengths.append(length_cm * 10)
+
+
+            self.update_3d(lengths)
+
+            length_y = lengths[0]
+            length_x = lengths[1]
+            length_z = lengths[2]
+
+            sx = START_X
+            sy = START_Y
+            sz = PEN_DOWN_Z
+
+
+            self.robot.writecoordinate(1, 0, sx, sy, PEN_UP_Z, 0, 0, 0)
+            self.robot.writecoordinate(1, 0, sx, sy, sz, 0, 0, 0)
+            self.move_linear_xyz(sx, sy, sz, sx, sy + length_y, sz)
+            self.robot.writecoordinate(1, 0, sx, sy + length_y, PEN_UP_Z, 0, 0, 0)
+            time.sleep(0.5)
+
+            self.robot.writecoordinate(1, 0, sx, sy, PEN_UP_Z, 0, 0, 0)
+            self.robot.writecoordinate(1, 0, sx, sy, sz, 0, 0, 0)
+            self.move_linear_xyz(sx, sy, sz, sx + length_x, sy, sz)
+            self.robot.writecoordinate(1, 0, sx + length_x, sy, PEN_UP_Z, 0, 0, 0)
+            time.sleep(0.5)
+
+    
+            self.robot.writecoordinate(1, 0, sx, sy, sz, 0, 0, 0)
+            self.move_linear_xyz(sx, sy, sz, sx, sy, sz + length_z)
+
+
+        except ValueError:
+            messagebox.showerror(
+                "입력 오류",
+                "3개의 길이를 모두 숫자로 입력해주세요."
+            )
+        except Exception as e:
+            messagebox.showerror("로봇 오류", str(e))
+
+    def update_fixed_3d(self, points):
+        """지정 좌표 이동 경로를 실제 로봇 좌표값 그대로 3D로 표시한다."""
+        self.ax.clear()
+
+        xs = [p[0] for p in points]
+        ys = [p[1] for p in points]
+        zs = [p[2] for p in points]
+
+        # 실제 로봇 이동 순서 그대로 연결
+        self.ax.plot(xs, ys, zs, marker="o", linewidth=2)
+
+        # 각 점 라벨: 서로 겹치지 않도록 위치를 조금씩 다르게 표시
+        label_offsets = {
+            1: (2, 0, 1),
+            2: (2, 0, -3),
+            3: (2, -8, 2),
+            4: (2, 0, 2),
+            5: (-10, -12, -3),
+            6: (2, 0, 2),
+        }
+
+        for i, (x, y, z) in enumerate(points, start=1):
+            dx, dy, dz = label_offsets[i]
+            self.ax.text(x + dx, y + dy, z + dz, f"P{i}", fontsize=9)
+
+        # 기준점 P3 강조
+        bx, by, bz = points[2]
+        self.ax.scatter([bx], [by], [bz], s=100)
+        self.ax.text(bx + 4, by - 18, bz + 3, "BASE (270, 79, 85)", fontsize=9)
+
+        self.ax.set_xlabel("Robot X (mm)")
+        self.ax.set_ylabel("Robot Y (mm)")
+        self.ax.set_zlabel("Robot Z (mm)")
+        self.ax.set_title("Robot 3D Path")
+
+        # 축을 실제 좌표값에 정확히 고정한다.
+        # 특히 P1=(255,79,20)이 Z=20 눈금에 정확히 놓이도록 한다.
+        self.ax.set_xlim(255, 310)
+        self.ax.set_ylim(-56, 79)
+        self.ax.set_zlim(20, 85)
+
+        self.ax.set_xticks([255, 270, 290, 310])
+        self.ax.set_yticks([-56, 0, 40, 79])
+        self.ax.set_zticks([20, 30, 40, 50, 60, 70, 80, 85])
+
+        # 실제 X/Y/Z 길이 비율: 55 : 135 : 65
+        self.ax.set_box_aspect((55, 135, 65))
+
+        # 좌표 확인용: 각 점의 실제 값을 콘솔에도 출력
+        for i, (x, y, z) in enumerate(points, start=1):
+            print(f"[3D] P{i}: X={x:.1f}, Y={y:.1f}, Z={z:.1f}")
+
+        self.canvas.draw()
+
+    def move_fixed_coordinates(self):
+        try:
+            if self.robot is None:
+                messagebox.showerror("로봇 오류", "로봇이 연결되지 않았습니다.")
+                return
+
+            points = [
+                (255.0, 79.0, 20.0),
+                (255.0, 79.0, 80.0),
+                (270.0, 79.0, 85.0),   # 기준점
+                (270.0, -56.0, 85.0),
+                (270.0, 79.0, 85.0),
+                (310.0, 79.0, 85.0),
+            ]
+
+            # 로봇이 실제로 따라갈 지정 좌표를 그대로 3D 시각화
+            self.update_fixed_3d(points)
+
+            x, y, z = points[0]
+            print(f"[지정 좌표 이동] 1 -> X={x}, Y={y}, Z={z}")
+            self.robot.writecoordinate(1, 0, x, y, z, 0, 0, 0)
+            time.sleep(1.0)
+
+            for i in range(1, len(points)):
+                sx, sy, sz = points[i - 1]
+                ex, ey, ez = points[i]
+                print(f"[지정 좌표 이동] {i + 1} -> X={ex}, Y={ey}, Z={ez}")
+                self.move_linear_xyz(sx, sy, sz, ex, ey, ez)
+                time.sleep(0.5)
+
+            messagebox.showinfo("완료", "지정 좌표 이동을 완료했습니다.")
+
+        except Exception as e:
+            messagebox.showerror("로봇 오류", str(e))
+
+    def draw_lines(self):
+        try:
+            if self.robot is None:
+                messagebox.showerror(
+                    "로봇 오류",
+                    "로봇이 연결되지 않았습니다."
+                )
+                return
+
+            lengths = []
+
+            for entry in self.entries:
+                length_cm = float(
+                    entry.get()
+                )
+
+                if length_cm <= 0 or length_cm > 20:
+                    messagebox.showerror(
+                        "입력 오류",
+                        "모든 길이는 0보다 크고 20cm 이하로 입력해주세요."
+                    )
+                    return
+
+                lengths.append(
+                    length_cm * 10
+                )
+
+            self.update_3d(lengths)
+
+            for i, length_mm in enumerate(lengths):
+                line_x = START_X + (i * LINE_GAP)
+                line_y = START_Y
+                end_y = line_y + length_mm
+
+                self.robot.writecoordinate(
+                    0,
+                    0,
+                    line_x,
+                    line_y,
+                    PEN_UP_Z,
+                    0,
+                    0,
+                    0
+                )
+
+                self.robot.writecoordinate(
+                    0,
+                    0,
+                    line_x,
+                    line_y,
+                    PEN_DOWN_Z,
+                    0,
+                    0,
+                    0
+                )
+
+                self.move_linear_4parts(
+                    line_x,
+                    line_y,
+                    end_y,
+                    PEN_DOWN_Z
+                )
+
+                self.robot.writecoordinate(
+                    0,
+                    0,
+                    line_x,
+                    end_y,
+                    PEN_UP_Z,
+                    0,
+                    0,
+                    0
+                )
+
+            print(f"입력 길이: {length_cm} cm")
+            print(f"변환 길이: {length_mm} mm")
+            print(f"시작 Y: {line_y}")
+            print(f"종료 Y: {end_y}")
+
+
+            self.robot.zero()
+
+        except ValueError:
+            messagebox.showerror(
+                "입력 오류",
+                "3개의 길이를 모두 숫자로 입력해주세요."
+            )
+
+        except Exception as e:
+            messagebox.showerror(
+                "로봇 오류",
+                str(e)
+            )
+
+    def close(self):
+        try:
+            if self.robot is not None:
+                self.robot.cancellation()
+
+            if self.serial is not None:
+                self.serial.close()
+
+        finally:
+            self.root.destroy()
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = LineDrawGUI(root)
+    root.mainloop()
