@@ -8,7 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import time
 
-#py 3d\3d5.py
+#py 3d\3d3.py
 
 #가로 : 60mm 
 #세로 : 40mm
@@ -238,29 +238,16 @@ class LineDrawGUI:
             time.sleep(0.05)
 
     def move_linear_xyz(self, start_x, start_y, start_z, end_x, end_y, end_z):
-        print(
-            f"\n[구간 이동 시작] "
-            f"({start_x:.2f}, {start_y:.2f}, {start_z:.2f}) -> "
-            f"({end_x:.2f}, {end_y:.2f}, {end_z:.2f})"
-        )
-
         for i in range(1, 11):
             t = i / 10.0
             x = start_x + (end_x - start_x) * t
             y = start_y + (end_y - start_y) * t
             z = start_z + (end_z - start_z) * t
 
-            print(
-                f"  [{i:02d}/10] "
-                f"X={x:.2f}, Y={y:.2f}, Z={z:.2f}"
-            )
-
             self.robot.writecoordinate(
                 1, 0, x, y, z, 0, 0, 0
             )
             time.sleep(0.05)
-
-        print("[구간 이동 완료]")
 
     def draw_xyz_lines(self):
         try:
@@ -317,56 +304,41 @@ class LineDrawGUI:
             messagebox.showerror("로봇 오류", str(e))
 
     def update_fixed_3d(self, points):
-        """지정 좌표 이동 경로를 실제 로봇 좌표값 그대로 3D로 표시한다."""
+        """지정 좌표 이동 경로를 실제 로봇 좌표계 그대로 3D로 표시한다."""
         self.ax.clear()
 
         xs = [p[0] for p in points]
         ys = [p[1] for p in points]
         zs = [p[2] for p in points]
 
-        # 실제 로봇 이동 순서 그대로 연결
+        # 로봇이 실제로 이동하는 순서대로 선 연결
         self.ax.plot(xs, ys, zs, marker="o", linewidth=2)
 
-        # 각 점 라벨: 서로 겹치지 않도록 위치를 조금씩 다르게 표시
-        label_offsets = {
-            1: (2, 0, 1),
-            2: (2, 0, -3),
-            3: (2, -8, 2),
-            4: (2, 0, 2),
-            5: (-10, -12, -3),
-            6: (2, 0, 2),
-        }
-
+        # 각 좌표 번호 표시
         for i, (x, y, z) in enumerate(points, start=1):
-            dx, dy, dz = label_offsets[i]
-            self.ax.text(x + dx, y + dy, z + dz, f"P{i}", fontsize=9)
+            self.ax.text(x, y, z, f"  P{i}")
 
         # 기준점 P3 강조
         bx, by, bz = points[2]
         self.ax.scatter([bx], [by], [bz], s=100)
-        self.ax.text(bx + 4, by - 18, bz + 3, "BASE (270, 79, 85)", fontsize=9)
+        self.ax.text(bx, by, bz, "  BASE", fontsize=11)
 
         self.ax.set_xlabel("Robot X (mm)")
         self.ax.set_ylabel("Robot Y (mm)")
         self.ax.set_zlabel("Robot Z (mm)")
-        self.ax.set_title("Robot 3D Path")
+        self.ax.set_title("Robot 3D Path\nBase = (270, 79, 85)")
 
-        # 축을 실제 좌표값에 정확히 고정한다.
-        # 특히 P1=(255,79,20)이 Z=20 눈금에 정확히 놓이도록 한다.
-        self.ax.set_xlim(255, 310)
-        self.ax.set_ylim(-56, 79)
-        self.ax.set_zlim(20, 85)
+        # 실제 좌표가 잘 보이도록 축 범위에 여백 추가
+        margin = 10.0
+        self.ax.set_xlim(min(xs) - margin, max(xs) + margin)
+        self.ax.set_ylim(min(ys) - margin, max(ys) + margin)
+        self.ax.set_zlim(min(zs) - margin, max(zs) + margin)
 
-        self.ax.set_xticks([255, 270, 290, 310])
-        self.ax.set_yticks([-56, 0, 40, 79])
-        self.ax.set_zticks([20, 30, 40, 50, 60, 70, 80, 85])
-
-        # 실제 X/Y/Z 길이 비율: 55 : 135 : 65
-        self.ax.set_box_aspect((55, 135, 65))
-
-        # 좌표 확인용: 각 점의 실제 값을 콘솔에도 출력
-        for i, (x, y, z) in enumerate(points, start=1):
-            print(f"[3D] P{i}: X={x:.1f}, Y={y:.1f}, Z={z:.1f}")
+        # X/Y/Z 실제 길이 비율 반영
+        x_range = max(max(xs) - min(xs), 1.0)
+        y_range = max(max(ys) - min(ys), 1.0)
+        z_range = max(max(zs) - min(zs), 1.0)
+        self.ax.set_box_aspect((x_range, y_range, z_range))
 
         self.canvas.draw()
 

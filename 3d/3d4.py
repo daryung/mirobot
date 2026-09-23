@@ -8,7 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import time
 
-#py 3d\3d5.py
+#py 3d\3d4.py
 
 #가로 : 60mm 
 #세로 : 40mm
@@ -238,29 +238,16 @@ class LineDrawGUI:
             time.sleep(0.05)
 
     def move_linear_xyz(self, start_x, start_y, start_z, end_x, end_y, end_z):
-        print(
-            f"\n[구간 이동 시작] "
-            f"({start_x:.2f}, {start_y:.2f}, {start_z:.2f}) -> "
-            f"({end_x:.2f}, {end_y:.2f}, {end_z:.2f})"
-        )
-
         for i in range(1, 11):
             t = i / 10.0
             x = start_x + (end_x - start_x) * t
             y = start_y + (end_y - start_y) * t
             z = start_z + (end_z - start_z) * t
 
-            print(
-                f"  [{i:02d}/10] "
-                f"X={x:.2f}, Y={y:.2f}, Z={z:.2f}"
-            )
-
             self.robot.writecoordinate(
                 1, 0, x, y, z, 0, 0, 0
             )
             time.sleep(0.05)
-
-        print("[구간 이동 완료]")
 
     def draw_xyz_lines(self):
         try:
